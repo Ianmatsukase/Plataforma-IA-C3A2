@@ -1,0 +1,96 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.1
+    volumes: [qdrant_data:/qdrant/storage]
+    ports: ["127.0.0.1:6333:6333"]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports: ["127.0.0.1:16686:16686"]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.113.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./observabilidade/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on: [jaeger]
+
+  inferencia:
+    build: ./inferencia
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      JOB_TTL_SEGUNDOS: ${JOB_TTL_SEGUNDOS:-3600}
+      VECTOR_TTL_SEGUNDOS: ${VECTOR_TTL_SEGUNDOS:-86400}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+    depends_on:
+      redis: {condition: service_healthy}
+      otel-collector: {condition: service_started}
+
+  worker:
+    build: ./worker
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-solicitacoes}
+      JOB_TTL_SEGUNDOS: ${JOB_TTL_SEGUNDOS:-3600}
+      VECTOR_TTL_SEGUNDOS: ${VECTOR_TTL_SEGUNDOS:-86400}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+    depends_on:
+      redis: {condition: service_healthy}
+      qdrant: {condition: service_started}
+      otel-collector: {condition: service_started}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["publicacao"]
+    environment:
+      CADDY_DOMAIN: ${CADDY_DOMAIN:-localhost}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [gateway]
+    restart: unless-stopped
+
+  gateway:
+    build: ./gateway
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      JWT_SEGREDO: ${JWT_SEGREDO:-DESENVOLVIMENTO-NAO-USE-EM-PRODUCAO-123456789}
+      JWT_EXPIRACAO_MINUTOS: ${JWT_EXPIRACAO_MINUTOS:-60}
+      USUARIO_DEMO: ${USUARIO_DEMO:-aluno}
+      SENHA_DEMO: ${SENHA_DEMO:-troque-esta-senha}
+      RATE_LIMIT_POR_MINUTO: ${RATE_LIMIT_POR_MINUTO:-30}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      URL_INFERENCIA: ${URL_INFERENCIA:-http://inferencia:8001}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+    depends_on:
+      redis: {condition: service_healthy}
+      inferencia: {condition: service_started}
+      otel-collector: {condition: service_started}
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  qdrant_data:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,7 @@
+C3.A2 — Plataforma de IA como Serviço
+
+Link do repositório GitHub: PREENCHER APÓS PUBLICAR O REPOSITÓRIO
+URL pública HTTPS: PREENCHER APÓS DEPLOY E TESTE
+
+Antes de enviar ao AVA, confirme que o repositório está público (ou acessível ao professor),
+que o README contém a URL HTTPS real e que o fluxo de login, submissão e consulta foi testado.
