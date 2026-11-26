@@ -51,8 +51,8 @@ flowchart LR
 ### Inicialização
 
 ```bash
-git clone <URL_DO_SEU_REPOSITORIO>
-cd <PASTA_DO_REPOSITORIO>
+git clone https://github.com/Ianmatsukase/Plataforma-IA-C3A2.git
+cd Plataforma-IA-C3A2
 cp .env.example .env
 ```
 
