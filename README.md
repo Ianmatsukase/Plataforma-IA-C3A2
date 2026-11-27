@@ -194,21 +194,22 @@ O envio da tarefa é rápido porque o gateway não espera a inferência terminar
 
 ## 9. Deploy público e HTTPS
 
-**URL pública:** `PREENCHER_APOS_DEPLOY`  
-**Data do último teste público:** `PREENCHER_APOS_DEPLOY`
+**Provedor:** Railway  
+**URL pública:** https://plataforma-ia-c3a2-production.up.railway.app  
+**Data do último teste público:** 26/11/2026  
+**Protocolo:** HTTPS
 
-O repositório contém um perfil opcional com Caddy para TLS automático. Uma forma de publicar a stack completa é usar uma VM Linux free-tier/Always Free que permita Docker e armazenamento persistente:
+O serviço Gateway foi publicado no Railway com domínio público e HTTPS. O fluxo de autenticação JWT, envio de solicitações e processamento assíncrono foi testado com sucesso.
 
-1. Crie uma VM e libere as portas TCP 80 e 443 no firewall da nuvem.
-2. Instale Docker Engine e o plugin Docker Compose.
-3. Clone o repositório e configure `.env` com segredos próprios.
-4. Configure um domínio DNS apontando para o IP público da VM (pode usar um subdomínio dinâmico compatível com ACME, se aceito pelo provedor de certificados).
-5. Defina `CADDY_DOMAIN=seu-dominio` no `.env`.
-6. Suba a plataforma: `docker compose --profile publicacao up --build -d`.
-7. Teste `https://seu-dominio/saude` e o fluxo completo de login, envio e consulta.
-8. Só então substitua os campos de URL e data acima pelos valores reais.
+Serviços utilizados na implantação:
+- Gateway: API pública.
+- Inferência: processamento e encaminhamento das tarefas.
+- Redis: fila e estado das tarefas.
+- Worker: execução do processamento assíncrono.
+- Qdrant: serviço de armazenamento vetorial.
 
-O HTTPS é fornecido pelo Caddy/Let's Encrypt. Não exponha Redis, Qdrant, Jaeger ou o serviço de inferência diretamente à internet. Para uma publicação gerenciada (Railway/Render), configure cada container como serviço separado e use Redis/Qdrant gerenciados; confira os limites e custos vigentes do plano antes de publicar.
+A observabilidade com OpenTelemetry e Jaeger está configurada para validação no ambiente local por meio do Docker Compose.
+
 
 ## 10. Testes locais
 
